@@ -1,7 +1,7 @@
 # create db
 ~~~
 sudo -u postgres psql
-CREATE USER goremotedevuser WITH PASSWORD 'secret';
-CREATE DATABASE goremotedev WITH OWNER = goremotedevuser ENCODING = 'UTF8';
-GRANT ALL PRIVILEGES ON DATABASE goremotedev TO goremotedevuser;
+CREATE USER catalogdev WITH PASSWORD 'catalogpass';
+CREATE DATABASE catalog WITH OWNER = catalogdev ENCODING = 'UTF8';
+GRANT ALL PRIVILEGES ON DATABASE catalog TO catalogdev;
 ~~~
