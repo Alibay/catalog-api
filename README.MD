@@ -8,7 +8,7 @@ GRANT ALL PRIVILEGES ON DATABASE catalog TO catalogdev;
 
 # Решения
 ~~~
-Swagger висит на корневом урле
+Swagger висит на корневом урле http://localhost:8888/
 
 Категории и продукты в списке получаеются "плоскими", без связных сущностей и только 
 в деталях категорий GET /api/v1/categories/{id} возвращается модель, с цепочкой 
