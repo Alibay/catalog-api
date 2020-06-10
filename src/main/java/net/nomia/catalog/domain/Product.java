@@ -23,7 +23,7 @@ public class Product {
     @Column(name ="created_at", nullable = false)
     private ZonedDateTime createdAt = ZonedDateTime.now();
 
-    @JoinColumn(name = "category_id", nullable = false)
-    @ManyToOne
+    @JoinColumn(name = "category_id", referencedColumnName = "id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     private Category category;
 }

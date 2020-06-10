@@ -1,62 +1,87 @@
 package net.nomia.catalog.web.rest;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import net.nomia.catalog.dto.ManagedProductDto;
+import lombok.extern.slf4j.Slf4j;
+import net.nomia.catalog.domain.Product;
+import net.nomia.catalog.dto.ProductDto;
 import net.nomia.catalog.dto.ProductsFilterDto;
+import net.nomia.catalog.mapper.ProductMapper;
+import net.nomia.catalog.repository.ProductRepository;
 import net.nomia.catalog.service.ProductService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.nomia.catalog.web.Views;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import javax.swing.text.View;
+import javax.validation.Valid;
+import java.net.URI;
+import java.net.URISyntaxException;
 
-import static org.springframework.http.ResponseEntity.noContent;
-import static org.springframework.http.ResponseEntity.ok;
+import static org.springframework.http.ResponseEntity.*;
 
+@Slf4j
 @Tag(name = "Product", description = "API for products")
-@RequestMapping("/api/products")
+@RequestMapping("/api/v1/products")
 @RestController
 public class ProductController {
 
-    private static final Logger log = LoggerFactory.getLogger(ProductController.class);
-
     private final ProductService productService;
+    private final ProductRepository productRepository;
+    private final ProductMapper productMapper;
 
-    public ProductController(ProductService productService) {
+    public ProductController(
+            ProductService productService,
+            ProductRepository productRepository,
+            ProductMapper productMapper
+    ) {
         this.productService = productService;
+        this.productRepository = productRepository;
+        this.productMapper = productMapper;
     }
 
     @Operation(summary = "Create a product")
     @PostMapping
-    public ResponseEntity<String> createProduct(@ModelAttribute final ManagedProductDto productDto) {
+    public ResponseEntity<ProductDto> createProduct(
+            @Valid @RequestBody final ProductDto managedProductDto
+    ) throws URISyntaxException {
         log.trace("Create a product");
-        return ok().build();
+        Product product = productService.createProduct(managedProductDto);
+        ProductDto productDto = productMapper.productToProductDto(product);
+        return created(new URI("/api/v1/products/" + product.getId())).body(productDto);
     }
 
     @Operation(summary = "Get products by filter")
     @GetMapping
-    public ResponseEntity<List<Object>> getProducts(@ModelAttribute final ProductsFilterDto filter) {
+    public ResponseEntity<Iterable<ProductDto>> getProducts(
+            Pageable pageable,
+            @ModelAttribute final ProductsFilterDto filter) {
         log.trace("Get products by filter: {}", filter);
-        return ok(new ArrayList<>());
+        Iterable<Product> products = productService.getProducts(pageable, filter);
+        Iterable<ProductDto> productDtos = productMapper.productsToProductDtos(products);
+        return ok(productDtos);
     }
 
     @Operation(summary = "Delete a product")
     @DeleteMapping("/{id}")
     public ResponseEntity deleteProduct(@PathVariable final Long id) {
         log.trace("Delete a product, id: {}", id);
+        productService.deleteProduct(id);
         return noContent().build();
     }
 
-    @Operation(summary = "Update a category")
+    @JsonView(Views.Public.class)
+    @Operation(summary = "Update a product")
     @PutMapping("/{id}")
     public ResponseEntity updateProduct(
             @PathVariable final Long id,
-            @PathVariable final ManagedProductDto productDto
+            @JsonView(Views.Managed.class) @RequestBody final ProductDto managedProductDto
     ) {
-        log.trace("Update a product, id: {}, data: {}", id, productDto);
-        return ok().build();
+        log.trace("Update a product, id: {}, data: {}", id, managedProductDto);
+        Product product = productService.updateProduct(id, managedProductDto);
+        ProductDto productDto = productMapper.productToProductDto(product);
+        return ok(productDto);
     }
 }
