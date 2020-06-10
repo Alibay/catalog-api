@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Objects;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -97,19 +98,46 @@ public class CategoryService {
     }
 
     public Category updateCategory(final Long id, final CategoryDto categoryDto) {
+        if (Objects.equals(id, categoryDto.getParentId())) {
+            throw new ResponseStatusException(BAD_REQUEST, "Circular dependencies are not allowed");
+        }
+
         return categoryRepository.findById(id)
                 .map(category -> {
                     Long parentId = category.getParent() == null ? null : category.getParent().getId();
                     if (!Objects.equals(parentId, categoryDto.getParentId())) {
-                        Category parent = categoryRepository.findById(categoryDto.getParentId())
-                                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Parent category not found"));
+                        Category parent = null;
+
+                        if (categoryDto.getParentId() != null) {
+                            parent = categoryRepository.findById(categoryDto.getParentId())
+                                    .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Parent category not found"));
+
+                            boolean circular = false;
+                            Category currentParent = parent.getParent();
+                            while (currentParent != null) {
+                                if (Objects.equals(currentParent.getId(), id)) {
+                                    circular = true;
+                                    break;
+                                }
+
+                                currentParent = currentParent.getParent();
+                            }
+
+                            if (circular) {
+                                throw new ResponseStatusException(BAD_REQUEST, "Circular dependencies are not allowed");
+                            }
+
+                            cacheManager.getCache("getCategory").evict(categoryDto.getParentId());
+                        }
 
                         category.setParent(parent);
 
-                        cacheManager.getCache("getCategory").evict(parentId);
-                        cacheManager.getCache("getCategory").evict(categoryDto.getParentId());
+                        if (parentId != null) {
+                            cacheManager.getCache("getCategory").evict(parentId);
+                        }
                     }
 
+                    cacheManager.getCache("getCategory").evict(id);
                     category.setName(categoryDto.getName());
                     categoryRepository.save(category);
 
